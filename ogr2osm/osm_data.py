@@ -113,6 +113,21 @@ class OsmData:
         return way
 
 
+    def __parse_linestringzm(self, ogrgeometry, tags):
+        way = self.__add_way(tags)
+        # LineString.GetPointZM() returns a tuple, so we can't call parsePoint on it
+        # and instead have to create the point ourself
+        previous_node_id = None
+        for i in range(ogrgeometry.GetPointCount()):
+            (x, y, z_unused, m_unused) = ogrgeometry.GetPointZM(i)
+            node = self.__add_node(x, y, {}, True)
+            if previous_node_id == None or previous_node_id != node.id:
+                way.points.append(node)
+                node.addparent(way)
+                previous_node_id = node.id
+        return way
+
+
     def __parse_polygon(self, ogrgeometry, tags):
         # Special case polygons with only one ring. This does not (or at least
         # should not) change behavior when simplify relations is turned on.
@@ -183,6 +198,8 @@ class OsmData:
         elif geometry_type in [ ogr.wkbLineString, ogr.wkbLinearRing, ogr.wkbLineString25D ]:
             # ogr.wkbLinearRing25D does not exist
             osmgeometries.append(self.__parse_linestring(ogrgeometry, tags))
+        elif geometry_type in [ ogr.wkbLineStringZM ]:
+            osmgeometries.append(self.__parse_linestringzm(ogrgeometry, tags))
         elif geometry_type in [ ogr.wkbPolygon, ogr.wkbPolygon25D ]:
             osmgeometries.append(self.__parse_polygon(ogrgeometry, tags))
         elif geometry_type in [ ogr.wkbMultiPoint, ogr.wkbMultiLineString, ogr.wkbMultiPolygon, \
